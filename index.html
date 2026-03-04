@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universcience | Mission Industrie</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: radial-gradient(circle, #1a1a4a 0%, #02021a 100%);
+            --accent-color: #f1c40f; --btn-bg: linear-gradient(180deg, #0b0b61 0%, #000000 100%);
+            --btn-border: #3498db; --text-color: white; --orange: #e67e22;
+        }
+        body { background: var(--bg-color); color: var(--text-color); font-family: 'Roboto', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        #login-overlay { position: fixed; inset: 0; background: var(--bg-color); z-index: 1000; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+        input { background: #000; border: 2px solid var(--btn-border); color: #fff; padding: 12px; border-radius: 30px; width: 280px; text-align: center; margin: 10px; font-size: 1.1em; }
+        #sidebar { width: 140px; background: rgba(0,0,0,0.6); border-right: 2px solid var(--btn-border); display: flex; flex-direction: column-reverse; padding: 10px; overflow-y: auto; }
+        .step { padding: 4px 15px; margin: 1px 0; border-radius: 20px; font-size: 0.75em; color: var(--orange); display: flex; justify-content: space-between; border-bottom: 1px solid #111; }
+        .step.active { background: var(--orange); color: white; font-weight: bold; box-shadow: 0 0 15px var(--orange); }
+        .step.completed { color: #fff; opacity: 0.4; }
+        #game-container { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        #question-box { width: 90%; max-width: 800px; background: var(--btn-bg); border: 3px solid var(--btn-border); padding: 40px; text-align: center; border-radius: 60px; margin-bottom: 40px; position: relative; box-shadow: 0 0 30px rgba(52, 152, 219, 0.4); }
+        #question-box::before, #question-box::after { content: ""; position: absolute; top: 50%; width: 60px; height: 3px; background: var(--btn-border); }
+        #question-box::before { left: -63px; } #question-box::after { right: -63px; }
+        .answers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 95%; max-width: 900px; }
+        .answer-btn { background: var(--btn-bg); border: 2px solid var(--btn-border); color: white; padding: 15px 25px; border-radius: 40px; cursor: pointer; font-size: 1.05em; text-align: left; }
+        .answer-btn:hover { background: var(--orange); color: black; border-color: white; box-shadow: 0 0 20px var(--orange); }
+        .answer-btn span { color: var(--accent-color); margin-right: 12px; font-weight: bold; }
+        .start-btn, #send-btn { background: var(--orange); color: white; border: none; padding: 15px 40px; border-radius: 30px; cursor: pointer; font-weight: bold; font-size: 1.2em; text-transform: uppercase; margin-top: 20px; }
+        .profile-card { background: var(--btn-bg); border: 3px solid var(--accent-color); padding: 30px; border-radius: 40px; text-align: left; max-width: 650px; line-height: 1.6; }
+        #debug-tag { position: absolute; bottom: 15px; right: 30px; font-size: 0.6em; color: #333; }
+    </style>
+</head>
+<body>
+
+    <div id="login-overlay">
+        <h1 style="color:var(--accent-color); letter-spacing: 5px;">MISSION INDUSTRIE</h1>
+        <p>ENTREZ LE CODE D'ACCÈS POUR DÉBUTER</p>
+        <input type="password" id="pass-input" placeholder="MOT DE PASSE">
+        <button class="start-btn" onclick="checkPass()">Valider</button>
+    </div>
+
+    <div id="sidebar"></div>
+
+    <div id="game-container" style="display:none">
+        <div id="setup-screen" style="text-align: center;">
+            <h1 style="color:var(--accent-color); font-size: 2.5em; margin-bottom: 10px;">MILLIONNAIRE</h1>
+            <p style="color:var(--btn-border); letter-spacing: 2px;">STRATÉGIE UNIVERSCIENCE</p><br>
+            <input type="text" id="user-name" placeholder="VOTRE NOM / PSEUDO">
+            <input type="text" id="user-dir" placeholder="VOTRE DIRECTION">
+            <br><button class="start-btn" onclick="startGame()">Commencer</button>
+        </div>
+
+        <div id="quiz-area" style="display:none; width: 100%; flex-direction: column; align-items: center;">
+            <div id="question-box">
+                <h2 id="question-text" style="font-weight: 400; font-size: 1.3em;"></h2>
+                <div id="debug-tag"></div>
+            </div>
+            <div class="answers-grid">
+                <button class="answer-btn" onclick="submitAnswer(2)"><span>A:</span> Totalement d'accord</button>
+                <button class="answer-btn" onclick="submitAnswer(1)"><span>B:</span> Plutôt d'accord</button>
+                <button class="answer-btn" onclick="submitAnswer(-1)"><span>C:</span> Plutôt pas d'accord</button>
+                <button class="answer-btn" onclick="submitAnswer(-2)"><span>D:</span> Pas du tout d'accord</button>
+            </div>
+            <button onclick="submitAnswer(0)" style="background:none; border:none; color:#555; margin-top:20px; cursor:pointer">Ne sait pas / Sauter</button>
+        </div>
+
+        <div id="result-screen" style="display:none; text-align: center;">
+            <h1 style="color:var(--accent-color);">DERNIER MOT ENREGISTRÉ !</h1>
+            <div id="profile-result" class="profile-card"></div>
+            <div id="status-msg" style="margin: 20px; color: var(--btn-border); font-weight: bold;"></div>
+            <button id="send-btn" onclick="sendToGoogle()">Transmettre les résultats</button>
+        </div>
+    </div>
+
+    <script>
+        const PASSWORD = "+dindustrie";
+        const scriptURL = "https://script.google.com/macros/s/AKfycbxQcQu_LXhprtSXOr28SEJNWCfV83b1Kx63lnDKTm_VHltJBpFtsen81hmnuZrXGhz2/exec"; 
+
+        const rawQuestions = [
+            { id: 1, a: {t: "L'industrie doit être définie par la transformation physique de la matière.", x: -1, y: 0}, b: {t: "L'industrie est un processus logique de mise à l'échelle incluant le numérique.", x: 1, y: 0} },
+            { id: 2, a: {t: "Une plateforme comme Netflix ou Amazon est une industrie à part entière.", x: 1, y: 0}, b: {t: "Amazon et Netflix sont des services de flux qui ne relèvent pas du récit industriel.", x: -1, y: 0} },
+            { id: 3, a: {t: "Une start-up sans ligne de production n'est pas encore une industrie.", x: -1, y: 0}, b: {t: "La Deep Tech et les jeunes pousses innovantes sont le cœur de l'industrie moderne.", x: 1, y: 0} },
+            { id: 4, a: {t: "Le terme « Innovation » est plus moderne et porteur que le mot « Industrie ».", x: 0, y: 1}, b: {t: "Utiliser « Innovation » à la place d'« Industrie » masque la réalité productive.", x: 0, y: -1} },
+            { id: 5, a: {t: "La Cité doit se concentrer exclusivement sur la High-Tech et les technologies de pointe.", x: 1, y: 0}, b: {t: "L’artisanat local et les approches 'low-tech' ont toute leur place.", x: -1, y: 0} },
+            { id: 6, a: {t: "L'industrie est un secteur d'activité spécifique (le secteur secondaire).", x: -1, y: 0}, b: {t: "L'industrie est une méthode transversale d'organisation (automatisation).", x: 1, y: 0} },
+            { id: 7, a: {t: "L'industrie se définit par l'infrastructure technique lourde (usines, machines).", x: -1, y: 0}, b: {t: "L'industrie se définit aujourd'hui par la gestion algorithmique des données.", x: 1, y: 0} },
+            { id: 8, a: {t: "L'agroalimentaire et le textile sont des sujets prioritaires car quotidiens.", x: -1, y: 0}, b: {t: "Le spatial et l'aéronautique sont prioritaires car plus inspirants.", x: 1, y: 0} },
+            { id: 9, a: {t: "Il faut montrer les matériaux de base (acier, plastique, chimie).", x: -1, y: 0}, b: {t: "Il faut montrer les composants immatériels (data, code, software).", x: 1, y: 0} },
+            { id: 10, a: {t: "L'industrie est par nature liée au modèle économique capitaliste.", x: 0, y: 1}, b: {t: "Il faut valoriser l'existence d'industries publiques ou hors marché.", x: 0, y: -1} },
+            { id: 11, a: {t: "La mission première est de soutenir l'attractivité économique et les vocations.", x: 0, y: 1}, b: {t: "La mission est de produire une analyse sociétale critique de l'industrie.", x: 0, y: -1} },
+            { id: 12, a: {t: "La Cité doit être la vitrine des priorités publiques nationales (France 2030).", x: 0, y: 1}, b: {t: "L'indépendance éditoriale impose de garder une distance face aux agendas d'État.", x: 0, y: -1} },
+            { id: 13, a: {t: "Une exposition sur la défense est nécessaire pour parler de souveraineté.", x: 0, y: 1}, b: {t: "La défense et l'armement nuisent à l'image de l'établissement.", x: 0, y: -1} },
+            { id: 14, a: {t: "L'objectif est l'alphabétisation industrielle : expliquer d'où viennent les objets.", x: -1, y: 0}, b: {t: "L'objectif est l'orientation : guider les jeunes vers les filières en tension.", x: 1, y: 0} },
+            { id: 15, a: {t: "On peut accepter le mécénat direct d'un industriel sur une exposition.", x: 0, y: 1}, b: {t: "Le financement par un acteur du secteur décrédibilise le discours.", x: 0, y: -1} },
+            { id: 16, a: {t: "La Cité doit mettre en scène les controverses (pollution, exploitation).", x: 0, y: -1}, b: {t: "Une approche trop critique risque de décourager les partenaires.", x: 0, y: 1} },
+            { id: 17, a: {t: "Le visiteur doit ressortir avec l'envie d'être un acteur de l'industrie.", x: -1, y: 0}, b: {t: "Le visiteur doit ressortir comme un consommateur éclairé.", x: 1, y: 0} },
+            { id: 18, a: {t: "Il faut valoriser la réindustrialisation nationale et le 'Fabriqué en France'.", x: -1, y: 1}, b: {t: "L'industrie doit être traitée comme un phénomène mondial.", x: 1, y: -1} },
+            { id: 19, a: {t: "La Cité doit être un lieu de consensus autour du progrès technique.", x: 0, y: 1}, b: {t: "La Cité doit être un espace de débat sur les choix productifs.", x: 0, y: -1} },
+            { id: 20, a: {t: "L'industrie est la solution principale à la transition écologique.", x: 0, y: 1}, b: {t: "L'industrie doit être remise en question sous l'angle de la sobriété.", x: 0, y: -1} },
+            { id: 21, a: {t: "Il faut prioritairement valoriser l'ingénieur et le concepteur.", x: 1, y: 0}, b: {t: "Il faut réhabiliter la figure du technicien comme « expert du réel ».", x: -1, y: 0} },
+            { id: 22, a: {t: "Le récit doit se concentrer sur les « cerveaux » qui inventent.", x: 1, y: 0}, b: {t: "Le récit doit se concentrer sur les « mains » qui fabriquent.", x: -1, y: 0} },
+            { id: 23, a: {t: "L'industrie doit rimer avec « High-Tech » pour l'émerveillement.", x: 1, y: 1}, b: {t: "L'industrie doit être montrée par la maîtrise du geste.", x: -1, y: 0} },
+            { id: 24, a: {t: "On valorise les réussites et les 'success stories' industrielles.", x: 0, y: 1}, b: {t: "On valorise le droit à l'erreur, la panne et la réparation.", x: 0, y: -1} },
+            { id: 25, a: {t: "Il faut incarner l'industrie par des parcours de vie humains.", x: 1, y: 0}, b: {t: "Il faut se focaliser sur les machines et les processus physiques.", x: -1, y: 0} },
+            { id: 26, a: {t: "L'industrie est synonyme d'innovation et de rupture.", x: 1, y: 1}, b: {t: "L'industrie est synonyme de stabilité et de standardisation.", x: -1, y: 0} },
+            { id: 27, a: {t: "L'équilibre actuel entre ingénieurs et techniciens est satisfaisant.", x: 0, y: 1}, b: {t: "Il faut volontairement sur-valoriser les techniciens.", x: 0, y: -1} },
+            { id: 28, a: {t: "L'innovation vient principalement des bureaux d'études.", x: 1, y: 0}, b: {t: "L'innovation vient autant du terrain et des ouvriers.", x: -1, y: 0} },
+            { id: 29, a: {t: "L'industrie doit être présentée comme un patrimoine culturel.", x: -1, y: 0}, b: {t: "L'industrie doit être présentée comme une science appliquée.", x: 1, y: 0} },
+            { id: 30, a: {t: "La Cité doit montrer des prototypes et laboratoires du futur.", x: 1, y: 0}, b: {t: "La Cité doit montrer des lignes de production réelles.", x: -1, y: 0} },
+            { id: 31, a: {t: "L'expérience doit passer par la manipulation réelle du geste.", x: -1, y: 0}, b: {t: "L'expérience doit passer par des simulations numériques.", x: 1, y: 0} },
+            { id: 32, a: {t: "Il faut privilégier l'émerveillement par le gigantisme.", x: -1, y: 1}, b: {t: "Il faut privilégier la compréhension des micro-systèmes.", x: 1, y: 0} },
+            { id: 33, a: {t: "La médiation doit porter sur les enjeux géopolitiques.", x: 0, y: -1}, b: {t: "La médiation doit porter sur les usages quotidiens.", x: 0, y: 1} },
+            { id: 34, a: {t: "L'approche doit être muséale : conserver la mémoire.", x: -1, y: 0}, b: {t: "L'approche doit être prospective : explorer le futur.", x: 1, y: 0} },
+            { id: 35, a: {t: "Le jeu de rôle stratégique est la meilleure médiation.", x: 1, y: 0}, b: {t: "L'atelier pratique de réparation est la meilleure médiation.", x: -1, y: 0} },
+            { id: 36, a: {t: "L'industrie s'explique à travers le produit fini.", x: 0, y: 1}, b: {t: "L'industrie s'explique à travers sa chaîne de valeur.", x: 0, y: -1} },
+            { id: 37, a: {t: "La standardisation est un progrès pour la consommation.", x: 0, y: 1}, b: {t: "La standardisation est une contrainte pour la créativité.", x: 0, y: -1} },
+            { id: 38, a: {t: "Il faut montrer l'usine comme un lieu clos spécifique.", x: -1, y: 0}, b: {t: "Il faut montrer que l'industrie est partout.", x: 1, y: 0} },
+            { id: 39, a: {t: "La Cité doit rassurer sur les capacités de transformation.", x: 0, y: 1}, b: {t: "La Cité doit alerter sur les risques industriels.", x: 0, y: -1} },
+            { id: 40, a: {t: "L'industrie nécessite une expertise préalable.", x: 0, y: 1}, b: {t: "L'industrie est un sujet de culture générale citoyenne.", x: 0, y: -1} }
+        ];
+
+        let currentStep = 0, gameQuestions = [], scoreX = 0, scoreY = 0, userName = "", userDir = "", finalProfile = "", detailedAnswers = [];
+
+        function checkPass() {
+            if(document.getElementById('pass-input').value === PASSWORD) {
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('game-container').style.display = 'flex';
+            } else { alert("Code incorrect."); }
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function startGame() {
+            userName = document.getElementById('user-name').value || "Anonyme";
+            userDir = document.getElementById('user-dir').value || "N/A";
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('quiz-area').style.display = 'flex';
+            
+            // Tirage A/B et mélange
+            let prepared = rawQuestions.map(q => {
+                const pickA = Math.random() < 0.5;
+                const chosen = pickA ? q.a : q.b;
+                return { text: chosen.t, x: chosen.x, y: chosen.y, id: q.id, isA: pickA };
+            });
+
+            gameQuestions = shuffle(prepared);
+            detailedAnswers = new Array(41).fill(0); 
+
+            const sidebar = document.getElementById('sidebar');
+            sidebar.innerHTML = "";
+            gameQuestions.forEach((_, i) => {
+                const div = document.createElement('div');
+                div.className = 'step'; div.id = `step-${i}`;
+                div.innerHTML = `<span>Q${i+1}</span> <span>${(i+1)*100}</span>`;
+                sidebar.appendChild(div);
+            });
+            showQuestion();
+        }
+
+        function showQuestion() {
+            if (currentStep >= gameQuestions.length) { showResults(); return; }
+            const q = gameQuestions[currentStep];
+            document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+            document.getElementById(`step-${currentStep}`).classList.add('active');
+            document.getElementById('question-text').innerText = q.text;
+            document.getElementById('debug-tag').innerText = `ID:${q.id}-${q.isA ? 'A' : 'B'}`;
+        }
+
+        function submitAnswer(m) {
+            const q = gameQuestions[currentStep];
+            scoreX += (q.x * m);
+            scoreY += (q.y * m);
+            detailedAnswers[q.id] = q.isA ? m : -m; // Normalisation Excel
+            document.getElementById(`step-${currentStep}`).classList.add('completed');
+            currentStep++; showQuestion();
+        }
+
+        function showResults() {
+            document.getElementById('quiz-area').style.display = 'none';
+            document.getElementById('result-screen').style.display = 'block';
+            let title = "", xTxt = "", yTxt = "";
+            xTxt = scoreX >= 0 ? "Vous privilégiez l'<b>Innovation</b>." : "Vous privilégiez la <b>Production</b>.";
+            yTxt = scoreY >= 0 ? "Vous privilégiez la <b>Promotion</b>." : "Vous privilégiez la <b>Critique</b>.";
+            if (scoreX >= 0 && scoreY >= 0) title = "Le Visionnaire Stratégique";
+            else if (scoreX < 0 && scoreY >= 0) title = "Le Réparateur du Réel";
+            else if (scoreX >= 0 && scoreY < 0) title = "L'Éclaireur des Limites";
+            else title = "Le Décrypteur de Systèmes";
+            finalProfile = title;
+            document.getElementById('profile-result').innerHTML = `<h2>${title}</h2><p><b>Axe Contenu :</b> ${xTxt}</p><p><b>Axe Posture :</b> ${yTxt}</p>`;
+        }
+
+        function sendToGoogle() {
+            const btn = document.getElementById('send-btn');
+            btn.disabled = true; btn.innerText = "ENVOI...";
+            fetch(scriptURL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ Nom: userName, Direction: userDir, Profil: finalProfile, ScoreX: scoreX, ScoreY: scoreY, Details: detailedAnswers.slice(1) })
+            }).then(() => {
+                document.getElementById('status-msg').innerText = "RÉSULTATS ENREGISTRÉS. MERCI !";
+                btn.style.display = 'none';
+            });
+        }
+    </script>
+</body>
+</html>
